@@ -1,0 +1,127 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase.js';
+import { COVERS } from '../../data/geotechnical.js';
+
+const { id } = Astro.params;
+
+// Fetch active blog post from Supabase
+let post = null;
+let allPosts = [];
+
+try {
+  const { data: activeData, error: activeErr } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (!activeErr && activeData) {
+    post = activeData;
+  }
+  
+  const { data: listData, error: listErr } = await supabase
+    .from('posts')
+    .select('*')
+    .order('date', { ascending: false });
+  
+  if (!listErr && listData) {
+    allPosts = listData;
+  }
+} catch (e) {
+  console.error("Supabase load error:", e);
+}
+
+// Fallback to static seed data if not found or empty
+if (!post || allPosts.length === 0) {
+  const { SEED_BLOG } = await import('../../data/geotechnical.js');
+  allPosts = SEED_BLOG;
+  post = SEED_BLOG.find(x => x.id === id);
+}
+
+if (!post) {
+  return Astro.redirect('/404');
+}
+
+const more = allPosts.filter(x => x.id !== id).slice(0, 3);
+
+// Function to format date in Turkish
+const fmtDate = (d) => {
+  const x = new Date(d);
+  return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+// Simple helper to escape HTML
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[c]));
+
+// Simple markdown to HTML parser matching original SPA logic
+const mdToHtml = (src) => {
+  const lines = String(src || '').replace(/\r/g, '').split('\n');
+  let html = '', inList = false;
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  for (let ln of lines) {
+    if (/^\s*-\s+/.test(ln)) {
+      if (!inList) {
+        html += '<ul>';
+        inList = true;
+      }
+      html += '<li>' + inline(ln.replace(/^\s*-\s+/, '')) + '</li>';
+      continue;
+    }
+    if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+    if (/^###?\s+/.test(ln)) {
+      html += '<h3>' + inline(ln.replace(/^###?\s+/, '')) + '</h3>';
+      continue;
+    }
+    if (ln.trim() === '') continue;
+    html += '<p>' + inline(ln) + '</p>';
+  }
+  if (inList) html += '</ul>';
+  return html;
+};
+---
+
+<Layout title={post.title} activeTab="blog" description={post.summary}>
+  <div class="page" style="padding-top:40px"><div class="wrap"><div class="article">
+    <p class="crumb"><a href="/blog">Blog</a> / {post.category}</p>
+    <div class="cover" style={`background:${COVERS[post.cover || 0]}`}>{post.emoji || '📄'}</div>
+    <h1>{post.title}</h1>
+    <div class="ameta">
+      <span class="chip on" style="font-size:.74rem;padding:.25rem .6rem">{post.category}</span>
+      <span>{post.author}</span>·<span>{fmtDate(post.date)}</span>
+    </div>
+    <div class="body" set:html={mdToHtml(post.body)}></div>
+  </div>
+  
+  {more.length > 0 && (
+    <div style="max-width:760px;margin:50px auto 0">
+      <h3 style="margin-bottom:18px">Diğer yazılar</h3>
+      <div class="grid cols-3">
+        {more.map(p => (
+          <a href={`/blog/${p.id}`} class="post">
+            <div class="cover" style={`background:${COVERS[p.cover || 0]}`}>
+              <span class="ct">{p.category}</span>
+              {p.emoji || '📄'}
+            </div>
+            <div class="pb">
+              <h3>{p.title}</h3>
+              <p>{p.summary}</p>
+              <div class="meta"><span>{p.author}</span>·<span>{fmtDate(p.date)}</span></div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+  </div></div>
+</Layout>

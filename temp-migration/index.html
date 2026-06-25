@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <!-- Dias Logic — Geoteknik Mühendislik Yazılımları -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dias Logic — Geoteknik Mühendislik Yazılımları</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========== TOP STRIP ========== -->
+  <div class="strip"><div class="wrap">
+    <span>🇹🇷 <b>%100 Türkçe</b> arayüz ve raporlama</span>
+    <span>📐 <b>TBDY 2018</b> & Eurocode 7 uyumlu</span>
+    <span>🎓 Akademik lisans paketi mevcut</span>
+  </div></div>
+
+  <!-- ========== HEADER ========== -->
+  <header class="site"><div class="wrap"><nav class="nav">
+    <a href="#/" class="brand">
+      <img src="assets/logo.png" alt="Dias Logic">
+      <span class="bn">Dias<span>Logic</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#/" data-r="">Ana Sayfa</a>
+      <a href="#/yazilimlar" data-r="yazilimlar">Yazılımlar</a>
+      <a href="#/cozumler" data-r="cozumler">Çözümler</a>
+      <a href="#/blog" data-r="blog">Blog</a>
+      <a href="#/forum" data-r="forum">Forum</a>
+      <a href="#/hakkimizda" data-r="hakkimizda">Hakkımızda</a>
+      <a href="#/iletisim" data-r="iletisim">İletişim</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#/iletisim" class="btn btn-ghost btn-sm">Demo Talep Et</a>
+      <a href="#/yazilimlar" class="btn btn-primary btn-sm">Ücretsiz Deneyin</a>
+      <button class="burger" id="burger" aria-label="Menü"><span></span></button>
+    </div>
+  </nav></div></header>
+
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#/">Ana Sayfa</a>
+    <a href="#/yazilimlar">Yazılımlar</a>
+    <a href="#/cozumler">Çözümler</a>
+    <a href="#/blog">Blog</a>
+    <a href="#/forum">Forum</a>
+    <a href="#/hakkimizda">Hakkımızda</a>
+    <a href="#/iletisim">İletişim</a>
+    <a href="#/yazilimlar" class="btn btn-primary btn-block">Ücretsiz Deneyin</a>
+  </div>
+
+  <main id="app"></main>
+  <div class="toast" id="toast"></div>
+
+  <!-- Supabase CDN JS Kütüphanesi -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- JavaScript Dosyaları -->
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

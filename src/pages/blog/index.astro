@@ -1,0 +1,86 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase.js';
+import { COVERS } from '../../data/geotechnical.js';
+
+// Read category filter from query parameters
+const category = Astro.url.searchParams.get('kategori') || 'Tümü';
+
+// Fetch blog posts from Supabase
+let blogPosts = [];
+try {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .order('date', { ascending: false });
+  if (!error && data) {
+    blogPosts = data;
+  }
+} catch (e) {
+  console.error("Supabase load error:", e);
+}
+
+// Fallback to static seed data if empty
+if (blogPosts.length === 0) {
+  const { SEED_BLOG } = await import('../../data/geotechnical.js');
+  blogPosts = SEED_BLOG;
+}
+
+// Generate category list dynamically
+const categories = ['Tümü', ...new Set(blogPosts.map(p => p.category))];
+
+// Filter posts
+const filteredPosts = category === 'Tümü'
+  ? blogPosts
+  : blogPosts.filter(p => p.category === category);
+
+// Function to format date in Turkish
+const fmtDate = (d) => {
+  const x = new Date(d);
+  return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+---
+
+<Layout title="Blog" activeTab="blog" description="Geoteknik mühendisliği teknik yazıları, yönetmelik güncellemeleri ve pratik zemin mekaniği ipuçları.">
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">Blog</div>
+    <h1>Geoteknikten Notlar</h1>
+    <p>Teknik yazılar, yönetmelik güncellemeleri ve yazılım ipuçları.</p>
+  </div></div>
+
+  <div class="page"><div class="wrap">
+    <div class="cats">
+      {categories.map(c => (
+        <a 
+          href={c === 'Tümü' ? '/blog' : `/blog?kategori=${encodeURIComponent(c)}`} 
+          class={`chip ${category === c ? 'on' : ''}`}
+        >
+          {c}
+        </a>
+      ))}
+    </div>
+    
+    {filteredPosts.length > 0 ? (
+      <div class="bloglist">
+        {filteredPosts.map(p => (
+          <a href={`/blog/${p.id}`} class="post">
+            <div class="cover" style={`background:${COVERS[p.cover || 0]}`}>
+              <span class="ct">{p.category}</span>
+              {p.emoji || '📄'}
+            </div>
+            <div class="pb">
+              <h3>{p.title}</h3>
+              <p>{p.summary}</p>
+              <div class="meta"><span>{p.author}</span>·<span>{fmtDate(p.date)}</span></div>
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="empty">
+        <div class="ee">📭</div>
+        Bu kategoride henüz yazı yok.
+      </div>
+    )}
+  </div></div>
+</Layout>

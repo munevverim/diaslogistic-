@@ -1,0 +1,71 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Yönetici Girişi">
+  <div class="page"><div class="wrap"><div class="login-wrap">
+    <div class="lk">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 10V7a6 6 0 0 1 12 0v3M5 10h14v10H5zM12 14v3"/>
+      </svg>
+    </div>
+    <h1 style="font-size:1.6rem;margin-bottom:.4rem">Yönetici Girişi</h1>
+    <p style="color:var(--ink-2);margin-bottom:20px;font-size:.92rem">İçerik yönetimi için şifrenizi girin.</p>
+    <div id="loginMsg"></div>
+    <div class="field">
+      <input id="adminPw" type="password" placeholder="Şifre">
+    </div>
+    <button class="btn btn-primary btn-block" id="btnLogin">Giriş Yap</button>
+    <p style="color:var(--ink-3);font-size:.78rem;margin-top:16px">Varsayılan şifre: <b class="mono">dias2025</b> — Ayarlar’dan değiştirebilirsiniz.</p>
+  </div></div></div>
+</Layout>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  const supabaseUrl = 'https://bcbzolhioialeexuglba.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjYnpvbGhpb2lhbGVleHVnbGJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDAxOTgsImV4cCI6MjA5Nzg3NjE5OH0.fLzYAzz25s5byVMPHWEeqFmPDeUYKf8yD1dY1bQjPMI';
+  
+  const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+  const btnLogin = document.getElementById('btnLogin');
+  const adminPwEl = document.getElementById('adminPw') as HTMLInputElement | null;
+  const loginMsg = document.getElementById('loginMsg');
+
+  const handleLogin = async () => {
+    if (!adminPwEl || !loginMsg) return;
+    const pw = adminPwEl.value;
+    
+    try {
+      const { data, error } = await supabaseClient
+        .from('settings')
+        .select('*')
+        .eq('key', 'admin_pass')
+        .single();
+        
+      const expectedPass = (!error && data) ? data.value : 'dias2025';
+      
+      if (pw === expectedPass) {
+        sessionStorage.setItem('isAdmin', 'true');
+        window.location.href = '/yonetici';
+      } else {
+        loginMsg.innerHTML = '<div class="notice warn">Şifre hatalı. Tekrar deneyin.</div>';
+      }
+    } catch (e) {
+      console.error(e);
+      loginMsg.innerHTML = '<div class="notice warn">Giriş sırasında hata oluştu.</div>';
+    }
+  };
+
+  if (btnLogin) {
+    btnLogin.addEventListener('click', handleLogin);
+  }
+  
+  if (adminPwEl) {
+    adminPwEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleLogin();
+      }
+    });
+  }
+</script>

@@ -1,0 +1,803 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Yönetici Paneli">
+  <!-- Client-side Admin Shell -->
+  <div class="page" style="padding-top:36px; display: none;" id="adminPage">
+    <div class="wrap">
+      <div class="admin-shell">
+        <!-- Sidebar -->
+        <div class="aside">
+          <div class="who"><b>Yönetici</b>Dias Logic Paneli</div>
+          <div class="amenu">
+            <button class="tab-btn on" data-tab="dash">📊 Genel Bakış</button>
+            <button class="tab-btn" data-tab="blog">📝 Blog Yazıları</button>
+            <button class="tab-btn" data-tab="topics">💬 Forum Konuları</button>
+            <button class="tab-btn" data-tab="cats">🗂️ Forum Kategorileri</button>
+            <button class="tab-btn" data-tab="settings">⚙️ Ayarlar</button>
+            <button id="btnLogout" style="color:#e0564f;margin-top:8px">⎋ Çıkış Yap</button>
+          </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="apanel" id="adminContent">
+          <div style="padding: 40px; text-align: center; color: var(--ink-3);">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  // 1. Auth Guard (Run immediately on load)
+  if (sessionStorage.getItem('isAdmin') !== 'true') {
+    window.location.href = '/yonetici/login';
+  } else {
+    const adminPage = document.getElementById('adminPage');
+    if (adminPage) adminPage.style.display = 'block';
+  }
+
+  // 2. Initialize Supabase
+  const supabaseUrl = 'https://bcbzolhioialeexuglba.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjYnpvbGhpb2lhbGVleHVnbGJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDAxOTgsImV4cCI6MjA5Nzg3NjE5OH0.fLzYAzz25s5byVMPHWEeqFmPDeUYKf8yD1dY1bQjPMI';
+  const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+  // 3. Local Dashboard State
+  const state = {
+    blog: [] as any[],
+    fcats: [] as any[],
+    topics: [] as any[],
+    adminPass: 'dias2025',
+    activeTab: 'dash',
+    editing: null as any | null
+  };
+
+  // Helper function to escape HTML
+  const esc = (s: any) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c as any] || c));
+
+  const fmtDate = (d: any) => {
+    const x = new Date(d);
+    return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  // 4. Fetch Data from Supabase
+  const loadData = async () => {
+    try {
+      // Fetch posts
+      const { data: posts } = await supabaseClient.from('posts').select('*').order('date', { ascending: false });
+      state.blog = posts || [];
+
+      // Fetch categories
+      const { data: cats } = await supabaseClient.from('categories').select('*').order('id', { ascending: true });
+      state.fcats = cats || [];
+
+      // Fetch topics and replies
+      const { data: topics } = await supabaseClient.from('topics').select('*, replies(*)');
+      if (topics) {
+        topics.forEach(t => {
+          if (t.replies) {
+            t.replies.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          } else {
+            t.replies = [];
+          }
+        });
+        state.topics = topics;
+      }
+      
+      // Fetch password
+      const { data: settings } = await supabaseClient.from('settings').select('*').eq('key', 'admin_pass').single();
+      if (settings) state.adminPass = settings.value;
+
+      render();
+    } catch (e) {
+      console.error(e);
+      alert("Veri yüklenirken hata oluştu.");
+    }
+  };
+
+  // 5. Rendering Engine
+  const render = () => {
+    const container = document.getElementById('adminContent');
+    if (!container) return;
+
+    // Highlight active menu tab
+    document.querySelectorAll('.amenu button.tab-btn').forEach(btn => {
+      const tab = btn.getAttribute('data-tab');
+      btn.classList.toggle('on', tab === state.activeTab);
+    });
+
+    if (state.activeTab === 'dash') {
+      container.innerHTML = renderDash();
+    } else if (state.activeTab === 'blog') {
+      container.innerHTML = state.editing !== null ? renderBlogForm() : renderBlogList();
+      bindBlogEvents();
+    } else if (state.activeTab === 'topics') {
+      container.innerHTML = state.editing !== null ? renderTopicForm() : renderTopicList();
+      bindTopicEvents();
+    } else if (state.activeTab === 'cats') {
+      container.innerHTML = renderCats();
+      bindCatEvents();
+    } else if (state.activeTab === 'settings') {
+      container.innerHTML = renderSettings();
+      bindSettingsEvents();
+    }
+  };
+
+  // --- Render Functions ---
+  const renderDash = () => {
+    const totalReplies = state.topics.reduce((s, t) => s + (t.replies || []).length, 0);
+    const stat = (n: any, l: any, e: any) => `
+      <div class="card" style="text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:6px">${e}</div>
+        <div class="mono" style="font-size:2rem;font-weight:700;color:var(--blue-700);font-family:'Space Grotesk'">${n}</div>
+        <div style="color:var(--ink-2);font-size:.85rem">${l}</div>
+      </div>
+    `;
+    return `
+      <div class="atop"><h2>Genel Bakış</h2></div>
+      <div class="grid cols-4" style="margin-bottom:26px">
+        ${stat(state.blog.length, 'Blog yazısı', '📝')}
+        ${stat(state.topics.length, 'Forum konusu', '💬')}
+        ${stat(totalReplies, 'Toplam yanıt', '↩️')}
+        ${stat(state.fcats.length, 'Kategori', '🗂️')}
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:.5rem">Hızlı işlemler</h3>
+        <p style="color:var(--ink-2);font-size:.9rem;margin-bottom:14px">Buradan içerik ekleyebilir, mevcut yazı ve konuları düzenleyebilirsiniz.</p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" id="btnQuickPost">+ Yeni Blog Yazısı</button>
+          <button class="btn btn-ghost btn-sm" id="btnQuickTopic">+ Yeni Forum Konusu</button>
+          <button class="btn btn-ghost btn-sm" id="btnQuickCats">Kategori Yönet</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const renderBlogList = () => {
+    return `
+      <div class="atop"><h2>Blog Yazıları</h2><button class="btn btn-primary btn-sm" id="btnNewPost">+ Yeni Yazı</button></div>
+      ${state.blog.length ? state.blog.map(p => `
+        <div class="arow">
+          <div class="ai">${p.emoji || '📄'}</div>
+          <div class="am"><b>${esc(p.title)}</b><small>${esc(p.category)} · ${fmtDate(p.date)} · ${esc(p.author)}</small></div>
+          <div class="aact">
+            <button class="icbtn btn-edit-post" data-id="${p.id}">Düzenle</button>
+            <button class="icbtn del btn-del-post" data-id="${p.id}">Sil</button>
+          </div>
+        </div>
+      `).join('') : `<div class="empty"><div class="ee">📝</div>Henüz yazı yok.</div>`}
+    `;
+  };
+
+  const renderBlogForm = () => {
+    const e = state.editing;
+    const emojis = ['📄','⛰️','🌊','🧱','🏗️','📐','🔬','📊','⚙️','🪨'];
+    const covers = [
+      'linear-gradient(135deg,#38B6FF,#1577C2)',
+      'linear-gradient(135deg,#2E2E30,#454a52)',
+      'linear-gradient(135deg,#1893E6,#0c4f7d)',
+      'linear-gradient(135deg,#5ec3ff,#2e2e30)'
+    ];
+    return `
+      <div class="atop"><h2>${e.id ? 'Yazıyı Düzenle' : 'Yeni Blog Yazısı'}</h2><button class="btn btn-ghost btn-sm" id="btnCancelEdit">← Geri</button></div>
+      <div class="formcard">
+        <div class="field"><label>Başlık</label><input id="f_title" value="${esc(e.title)}" placeholder="Yazı başlığı"></div>
+        <div class="frow">
+          <div class="field"><label>Kategori</label><input id="f_cat" value="${esc(e.category)}" placeholder="örn. Teknik"></div>
+          <div class="field"><label>Yazar</label><input id="f_author" value="${esc(e.author)}"></div>
+        </div>
+        <div class="frow">
+          <div class="field"><label>Tarih</label><input id="f_date" type="date" value="${esc(e.date ? e.date.substring(0, 10) : '')}"></div>
+          <div class="field"><label>Kapak rengi</label>
+            <select id="f_cover">
+              ${covers.map((c, i) => `<option value="${i}" ${e.cover == i ? 'selected' : ''}>Tema ${i + 1}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Kapak simgesi</label>
+          <div id="emojiPick" style="display:flex;gap:.4rem;flex-wrap:wrap">
+            ${emojis.map(em => `
+              <button type="button" class="icbtn emoji-btn ${e.emoji === em ? 'active-emoji' : ''}" style="font-size:1.1rem;" data-emoji="${em}">${em}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="field"><label>Özet</label><textarea id="f_summary" style="min-height:70px" placeholder="Kart üzerinde görünecek kısa özet">${esc(e.summary)}</textarea></div>
+        <div class="field"><label>İçerik</label><textarea id="f_body" style="min-height:260px" placeholder="Yazı içeriği...">${esc(e.body)}</textarea>
+          <div class="hint">Biçimlendirme: <b class="mono">## Başlık</b> · <b class="mono">- madde</b> · <b class="mono">**kalın**</b> · boş satır = yeni paragraf</div>
+        </div>
+        <div style="display:flex;gap:.6rem">
+          <button class="btn btn-primary" id="btnSavePost">${e.id ? 'Değişiklikleri Kaydet' : 'Yazıyı Yayınla'}</button>
+          <button class="btn btn-ghost" id="btnCancelEdit2">İptal</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const renderTopicList = () => {
+    const sorted = state.topics.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return `
+      <div class="atop"><h2>Forum Konuları</h2><button class="btn btn-primary btn-sm" id="btnNewTopic">+ Yeni Konu</button></div>
+      ${sorted.length ? sorted.map(t => {
+        const c = state.fcats.find(x => x.id === t.cat);
+        return `
+          <div class="arow">
+            <div class="ai">💬</div>
+            <div class="am"><b>${esc(t.title)}</b><small>${esc(c ? c.name : '—')} · ${esc(t.author)} · ${(t.replies || []).length} yanıt · ${fmtDate(t.date)}</small></div>
+            <div class="aact">
+              <a class="icbtn" href="/forum/${t.id}" target="_blank">Görüntüle</a>
+              <button class="icbtn btn-edit-topic" data-id="${t.id}">Düzenle</button>
+              <button class="icbtn del btn-del-topic" data-id="${t.id}">Sil</button>
+            </div>
+          </div>
+        `;
+      }).join('') : `<div class="empty"><div class="ee">💬</div>Henüz konu yok.</div>`}
+    `;
+  };
+
+  const renderTopicForm = () => {
+    const e = state.editing;
+    return `
+      <div class="atop"><h2>${e.id ? 'Konuyu Düzenle' : 'Yeni Forum Konusu'}</h2><button class="btn btn-ghost btn-sm" id="btnCancelTopicEdit">← Geri</button></div>
+      <div class="formcard">
+        <div class="frow">
+          <div class="field">
+            <label>Kategori</label>
+            <select id="t_cat">
+              ${state.fcats.map(c => `<option value="${c.id}" ${e.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Yazar</label><input id="t_author" value="${esc(e.author)}"></div>
+        </div>
+        <div class="field"><label>Başlık</label><input id="t_title" value="${esc(e.title)}" placeholder="Konu başlığı"></div>
+        <div class="field"><label>İçerik</label><textarea id="t_body" style="min-height:160px" placeholder="Konu metni...">${esc(e.body)}</textarea></div>
+        
+        ${e.id && (e.replies || []).length ? `
+          <div class="field"><label>Yanıtlar (${e.replies.length})</label>
+            ${e.replies.map((r: any) => `
+              <div class="arow">
+                <div class="am"><b>${esc(r.author)}</b><small>${esc(r.body).slice(0, 80)}</small></div>
+                <button class="icbtn del btn-del-reply" data-topicid="${e.id}" data-replyid="${r.id}">Sil</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        
+        <div style="display:flex;gap:.6rem">
+          <button class="btn btn-primary" id="btnSaveTopic">${e.id ? 'Kaydet' : 'Konuyu Yayınla'}</button>
+          <button class="btn btn-ghost" id="btnCancelTopicEdit2">İptal</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const renderCats = () => {
+    return `
+      <div class="atop"><h2>Forum Kategorileri</h2></div>
+      <div class="formcard" style="margin-bottom:18px">
+        <h3 style="font-size:1.05rem;margin-bottom:14px">Yeni kategori ekle</h3>
+        <div class="frow">
+          <div class="field"><label>Simge (emoji)</label><input id="nc_emoji" value="📁" maxlength="2"></div>
+          <div class="field"><label>Kategori adı</label><input id="nc_name" placeholder="örn. Sıvılaşma"></div>
+        </div>
+        <div class="field"><label>Açıklama</label><input id="nc_desc" placeholder="Kısa açıklama"></div>
+        <button class="btn btn-primary" id="btnAddCat">Kategori Ekle</button>
+      </div>
+      ${state.fcats.map(c => `
+        <div class="arow">
+          <div class="ai">${c.emoji}</div>
+          <div class="am"><b>${esc(c.name)}</b><small>${esc(c.desc)} · ${state.topics.filter(t => t.cat === c.id).length} konu</small></div>
+          <button class="icbtn del btn-del-cat" data-id="${c.id}">Sil</button>
+        </div>
+      `).join('')}
+    `;
+  };
+
+  const renderSettings = () => {
+    return `
+      <div class="atop"><h2>Ayarlar</h2></div>
+      <div class="formcard" style="max-width:480px">
+        <h3 style="font-size:1.05rem;margin-bottom:14px">Yönetici şifresini değiştir</h3>
+        <div id="pwMsg"></div>
+        <div class="field"><label>Mevcut şifre</label><input id="s_old" type="password"></div>
+        <div class="field"><label>Yeni şifre</label><input id="s_new" type="password"></div>
+        <button class="btn btn-primary" id="btnChangePass">Şifreyi Güncelle</button>
+      </div>
+      <div class="formcard" style="max-width:480px;margin-top:18px">
+        <h3 style="font-size:1.05rem;margin-bottom:8px">Verileri sıfırla</h3>
+        <p style="color:var(--ink-2);font-size:.88rem;margin-bottom:14px">Tüm blog ve forum içeriğini başlangıç değerlerine döndürür.</p>
+        <button class="btn btn-ghost" style="color:#e0564f;border-color:#f1c0bc" id="btnResetData">Başlangıç verilerine dön</button>
+      </div>
+    `;
+  };
+
+  // --- Dynamic Event Binding Helpers ---
+  const bindBlogEvents = () => {
+    // New Post click
+    const btnNewPost = document.getElementById('btnNewPost');
+    if (btnNewPost) {
+      btnNewPost.addEventListener('click', () => {
+        state.editing = {
+          id: null,
+          title: '',
+          category: 'Teknik',
+          author: 'Dias Logic Ekibi',
+          emoji: '📄',
+          cover: 0,
+          date: new Date().toISOString().substring(0, 10),
+          summary: '',
+          body: ''
+        };
+        render();
+      });
+    }
+
+    // Cancel edit click
+    const btnCancel = document.getElementById('btnCancelEdit');
+    const btnCancel2 = document.getElementById('btnCancelEdit2');
+    const handleCancel = () => {
+      state.editing = null;
+      render();
+    };
+    if (btnCancel) btnCancel.addEventListener('click', handleCancel);
+    if (btnCancel2) btnCancel2.addEventListener('click', handleCancel);
+
+    // Save Post click
+    const btnSavePost = document.getElementById('btnSavePost');
+    if (btnSavePost) {
+      btnSavePost.addEventListener('click', async () => {
+        const titleEl = document.getElementById('f_title') as HTMLInputElement;
+        const catEl = document.getElementById('f_cat') as HTMLInputElement;
+        const authorEl = document.getElementById('f_author') as HTMLInputElement;
+        const dateEl = document.getElementById('f_date') as HTMLInputElement;
+        const coverEl = document.getElementById('f_cover') as HTMLSelectElement;
+        const summaryEl = document.getElementById('f_summary') as HTMLTextAreaElement;
+        const bodyEl = document.getElementById('f_body') as HTMLTextAreaElement;
+
+        if (!titleEl || !bodyEl) return;
+
+        const title = titleEl.value.trim();
+        const category = catEl.value.trim() || 'Genel';
+        const author = authorEl.value.trim() || 'Dias Logic Ekibi';
+        const date = dateEl.value || new Date().toISOString().substring(0, 10);
+        const cover = parseInt(coverEl.value) || 0;
+        const summary = summaryEl.value.trim() || bodyEl.value.substring(0, 140);
+        const body = bodyEl.value;
+
+        if (!title) {
+          alert('Lütfen bir başlık girin');
+          return;
+        }
+
+        const isNew = state.editing.id === null;
+        const postData = {
+          id: isNew ? 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : state.editing.id,
+          title,
+          category,
+          author,
+          date,
+          cover,
+          emoji: state.editing.emoji || '📄',
+          summary,
+          body
+        };
+
+        try {
+          const { error } = await supabaseClient.from('posts').upsert(postData);
+          if (error) throw error;
+          
+          alert(isNew ? 'Yazı yayınlandı' : 'Yazı güncellendi');
+          state.editing = null;
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Blog yazısı kaydedilirken hata oluştu: ' + e.message);
+        }
+      });
+    }
+
+    // Emoji Pick click
+    document.querySelectorAll('#emojiPick button.emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const em = btn.getAttribute('data-emoji');
+        state.editing.emoji = em;
+        // Toggle active emoji visual style
+        document.querySelectorAll('#emojiPick button.emoji-btn').forEach(b => b.classList.remove('active-emoji'));
+        btn.classList.add('active-emoji');
+      });
+    });
+
+    // Edit Post row click
+    document.querySelectorAll('.btn-edit-post').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const p = state.blog.find(x => x.id === id);
+        if (p) {
+          state.editing = JSON.parse(JSON.stringify(p));
+          render();
+        }
+      });
+    });
+
+    // Delete Post row click
+    document.querySelectorAll('.btn-del-post').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+        if (!confirm('Bu yazıyı silmek istediğinize emin misiniz?')) return;
+        
+        try {
+          const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+          if (error) throw error;
+          alert('Yazı silindi');
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Silme sırasında hata oluştu: ' + e.message);
+        }
+      });
+    });
+  };
+
+  const bindTopicEvents = () => {
+    // New Topic click
+    const btnNewTopic = document.getElementById('btnNewTopic');
+    if (btnNewTopic) {
+      btnNewTopic.addEventListener('click', () => {
+        state.editing = {
+          id: null,
+          cat: state.fcats[0]?.id || '',
+          title: '',
+          author: 'Dias Logic Ekibi',
+          body: '',
+          date: new Date().toISOString(),
+          replies: []
+        };
+        render();
+      });
+    }
+
+    // Cancel topic edit click
+    const btnCancel = document.getElementById('btnCancelTopicEdit');
+    const btnCancel2 = document.getElementById('btnCancelTopicEdit2');
+    const handleCancel = () => {
+      state.editing = null;
+      render();
+    };
+    if (btnCancel) btnCancel.addEventListener('click', handleCancel);
+    if (btnCancel2) btnCancel2.addEventListener('click', handleCancel);
+
+    // Save Topic click
+    const btnSaveTopic = document.getElementById('btnSaveTopic');
+    if (btnSaveTopic) {
+      btnSaveTopic.addEventListener('click', async () => {
+        const catEl = document.getElementById('t_cat') as HTMLSelectElement;
+        const authorEl = document.getElementById('t_author') as HTMLInputElement;
+        const titleEl = document.getElementById('t_title') as HTMLInputElement;
+        const bodyEl = document.getElementById('t_body') as HTMLTextAreaElement;
+
+        if (!titleEl || !bodyEl) return;
+
+        const title = titleEl.value.trim();
+        const body = bodyEl.value.trim();
+        const cat = catEl.value;
+        const author = authorEl.value.trim() || 'Dias Logic Ekibi';
+
+        if (!title || !body) {
+          alert('Başlık ve içerik gerekli');
+          return;
+        }
+
+        const isNew = state.editing.id === null;
+        const topicData = {
+          id: isNew ? 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : state.editing.id,
+          cat,
+          author,
+          title,
+          body,
+          date: isNew ? new Date().toISOString() : state.editing.date
+        };
+
+        try {
+          const { error } = await supabaseClient.from('topics').upsert(topicData);
+          if (error) throw error;
+          
+          alert(isNew ? 'Konu oluşturuldu' : 'Konu güncellendi');
+          state.editing = null;
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Forum konusu kaydedilirken hata oluştu: ' + e.message);
+        }
+      });
+    }
+
+    // Edit Topic row click
+    document.querySelectorAll('.btn-edit-topic').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const t = state.topics.find(x => x.id === id);
+        if (t) {
+          state.editing = JSON.parse(JSON.stringify(t));
+          render();
+        }
+      });
+    });
+
+    // Delete Topic row click
+    document.querySelectorAll('.btn-del-topic').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+        if (!confirm('Bu konuyu silmek istediğinize emin misiniz?')) return;
+        
+        try {
+          const { error } = await supabaseClient.from('topics').delete().eq('id', id);
+          if (error) throw error;
+          alert('Konu silindi');
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Silme sırasında hata oluştu: ' + e.message);
+        }
+      });
+    });
+
+    // Delete reply click
+    document.querySelectorAll('.btn-del-reply').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const topicid = btn.getAttribute('data-topicid');
+        const replyid = btn.getAttribute('data-replyid');
+        if (!replyid || !confirm('Bu yanıtı silmek istediğinize emin misiniz?')) return;
+
+        try {
+          const { error } = await supabaseClient.from('replies').delete().eq('id', replyid);
+          if (error) throw error;
+          alert('Yanıt silindi');
+          
+          // Update local editing replies
+          if (state.editing && state.editing.id === topicid) {
+            state.editing.replies = state.editing.replies.filter((r: any) => r.id !== replyid);
+          }
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Hata: ' + e.message);
+        }
+      });
+    });
+  };
+
+  const bindCatEvents = () => {
+    // Add category click
+    const btnAddCat = document.getElementById('btnAddCat');
+    if (btnAddCat) {
+      btnAddCat.addEventListener('click', async () => {
+        const nameEl = document.getElementById('nc_name') as HTMLInputElement;
+        const emojiEl = document.getElementById('nc_emoji') as HTMLInputElement;
+        const descEl = document.getElementById('nc_desc') as HTMLInputElement;
+
+        if (!nameEl) return;
+        const name = nameEl.value.trim();
+        const emoji = emojiEl.value.trim() || '📁';
+        const desc = descEl.value.trim() || '';
+
+        if (!name) {
+          alert('Kategori adı gerekli');
+          return;
+        }
+
+        const uid = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        const cat = { id: uid, name, emoji, desc };
+
+        try {
+          const { error } = await supabaseClient.from('categories').insert(cat);
+          if (error) throw error;
+          
+          alert('Kategori eklendi');
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Hata: ' + e.message);
+        }
+      });
+    }
+
+    // Delete category click
+    document.querySelectorAll('.btn-del-cat').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+
+        const hasTopics = state.topics.some(t => t.cat === id);
+        if (hasTopics) {
+          if (!confirm('Bu kategoride konular var. Yine de silinsin mi? (Konular kategorisiz kalır)')) return;
+        } else {
+          if (!confirm('Kategoriyi silmek istediğinize emin misiniz?')) return;
+        }
+
+        try {
+          const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+          if (error) throw error;
+          
+          alert('Kategori silindi');
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Hata: ' + e.message);
+        }
+      });
+    });
+  };
+
+  const bindSettingsEvents = () => {
+    // Change pass click
+    const btnChangePass = document.getElementById('btnChangePass');
+    if (btnChangePass) {
+      btnChangePass.addEventListener('click', async () => {
+        const oldEl = document.getElementById('s_old') as HTMLInputElement;
+        const newEl = document.getElementById('s_new') as HTMLInputElement;
+        const pwMsg = document.getElementById('pwMsg');
+
+        if (!oldEl || !newEl || !pwMsg) return;
+
+        const oldPass = oldEl.value;
+        const newPass = newEl.value.trim();
+
+        if (oldPass !== state.adminPass) {
+          pwMsg.innerHTML = '<div class="notice warn">Mevcut şifre yanlış.</div>';
+          return;
+        }
+        if (newPass.length < 4) {
+          pwMsg.innerHTML = '<div class="notice warn">Yeni şifre en az 4 karakter olmalı.</div>';
+          return;
+        }
+
+        try {
+          const { error } = await supabaseClient.from('settings').upsert({ key: 'admin_pass', value: newPass });
+          if (error) throw error;
+          
+          state.adminPass = newPass;
+          pwMsg.innerHTML = '<div class="notice">Şifre güncellendi.</div>';
+          alert('Şifre değiştirildi');
+          oldEl.value = '';
+          newEl.value = '';
+        } catch (e: any) {
+          console.error(e);
+          alert('Hata: ' + e.message);
+        }
+      });
+    }
+
+    // Reset Data click
+    const btnResetData = document.getElementById('btnResetData');
+    if (btnResetData) {
+      btnResetData.addEventListener('click', async () => {
+        if (!confirm('Tüm içerik başlangıç değerlerine dönecek. Emin misiniz?')) return;
+        
+        try {
+          // Delete all records
+          await supabaseClient.from('replies').delete().neq('id', 'dummy_id');
+          await supabaseClient.from('topics').delete().neq('id', 'dummy_id');
+          await supabaseClient.from('categories').delete().neq('id', 'dummy_id');
+          await supabaseClient.from('posts').delete().neq('id', 'dummy_id');
+          await supabaseClient.from('settings').delete().neq('key', 'dummy_key');
+
+          // Seed data
+          const { SEED_BLOG, SEED_FCATS, SEED_TOPICS } = await import('../../data/geotechnical.js');
+          
+          await supabaseClient.from('posts').insert(SEED_BLOG);
+          await supabaseClient.from('categories').insert(SEED_FCATS);
+          
+          const dbTopics = SEED_TOPICS.map(t => {
+            const { replies, ...topicData } = t;
+            return topicData;
+          });
+          await supabaseClient.from('topics').insert(dbTopics);
+
+          const dbReplies = [] as any[];
+          SEED_TOPICS.forEach(t => {
+            if (t.replies) {
+              t.replies.forEach(r => {
+                dbReplies.push({
+                  id: r.id,
+                  topic_id: t.id,
+                  author: r.author,
+                  body: r.body,
+                  date: r.date,
+                  op: r.op || false
+                });
+              });
+            }
+          });
+          if (dbReplies.length > 0) {
+            await supabaseClient.from('replies').insert(dbReplies);
+          }
+
+          await supabaseClient.from('settings').insert({ key: 'admin_pass', value: 'dias2025' });
+
+          alert('Veriler başarıyla sıfırlandı');
+          loadData();
+        } catch (e: any) {
+          console.error(e);
+          alert('Sıfırlama hatası: ' + e.message);
+        }
+      });
+    }
+  };
+
+  // 6. Hook Up Sidebar Tab Click Event Listeners
+  document.querySelectorAll('.amenu button.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) {
+        state.activeTab = tab;
+        state.editing = null;
+        render();
+      }
+    });
+  });
+
+  // Quick action redirectors
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.id === 'btnQuickPost') {
+      state.activeTab = 'blog';
+      state.editing = {
+        id: null,
+        title: '',
+        category: 'Teknik',
+        author: 'Dias Logic Ekibi',
+        emoji: '📄',
+        cover: 0,
+        date: new Date().toISOString().substring(0, 10),
+        summary: '',
+        body: ''
+      };
+      render();
+    } else if (target.id === 'btnQuickTopic') {
+      state.activeTab = 'topics';
+      state.editing = {
+        id: null,
+        cat: state.fcats[0]?.id || '',
+        title: '',
+        author: 'Dias Logic Ekibi',
+        body: '',
+        date: new Date().toISOString(),
+        replies: []
+      };
+      render();
+    } else if (target.id === 'btnQuickCats') {
+      state.activeTab = 'cats';
+      state.editing = null;
+      render();
+    }
+  });
+
+  // Logout click
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      sessionStorage.removeItem('isAdmin');
+      window.location.href = '/yonetici/login';
+    });
+  }
+
+  // 7. Initial Page Load
+  loadData();
+</script>
+
+<style>
+  .active-emoji {
+    border-color: var(--blue) !important;
+    background: var(--blue-050) !important;
+  }
+</style>

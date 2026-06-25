@@ -1,0 +1,8 @@
+- [x] Base64 logoyu `assets/logo.png` dosyası olarak kaydetmek
+- [x] `style.css` dosyasını oluşturmak
+- [x] `js/data.js` dosyasını oluşturmak (Sabitler ve seed verileri)
+- [x] `js/store.js` dosyasını oluşturmak (Asenkron veri katmanı)
+- [x] `js/app.js` dosyasını oluşturmak (UI, yönlendirici ve yardımcılar)
+- [x] `index.html` dosyasını oluşturmak
+- [x] Eski `diaslogic.html` dosyasını temizlemek (Kullanıcının isteğiyle dokunulmadı/kaldı)
+- [x] Doğrulama ve testler (Tarayıcı alt acentesi ve yerel sunucu ile test edilerek doğrulandı)

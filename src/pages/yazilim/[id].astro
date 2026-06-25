@@ -1,0 +1,87 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { PRODUCTS } from '../../data/geotechnical.js';
+
+const { id } = Astro.params;
+const p = PRODUCTS.find(x => x.id === id);
+
+if (!p) {
+  return Astro.redirect('/404');
+}
+
+const rel = PRODUCTS.filter(x => x.tag === p.tag && x.id !== p.id).slice(0, 3);
+
+// SVG icons helper
+const icons = {
+  slope: '<path d="M3 19h18M3 19 14 7l3 3 4-5"/><path d="M14 7l-4 12"/>',
+  mesh: '<path d="M4 20 12 4l8 16zM4 20h16M8 12h8M9.5 8h5"/>',
+  wall: '<path d="M3 21h18M5 21V9h6v12M11 15h8v6M7 12h2M7 18h2M14 18h2"/>',
+  found: '<path d="M3 9h18l-2 4H5zM5 13v6M19 13v6M5 19h14M12 4v5"/>',
+  pile: '<path d="M3 7h18M8 7v13M16 7v13M8 11h8M8 15h8M12 4v3"/>',
+  settle: '<path d="M3 6h18M3 6c0 4 18 4 18 0M3 6v8c0 4 18 4 18 0V6M12 11v6"/>',
+  liq: '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11zM9 14a3 3 0 0 0 3 3"/>',
+  data: '<path d="M4 6c0-1.5 3.6-2.5 8-2.5S20 4.5 20 6s-3.6 2.5-8 2.5S4 7.5 4 6zM4 6v12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5V6M4 12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5"/>',
+};
+---
+
+<Layout title={p.name} activeTab="yazilimlar" description={p.desc}>
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">{p.tag}</div>
+    <h1>{p.name}</h1>
+    {p.desc && <p>{p.desc}</p>}
+  </div></div>
+
+  <div class="page"><div class="wrap">
+    <p class="crumb"><a href="/yazilimlar">Yazılımlar</a> / {p.name}</p>
+    
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:36px;align-items:start">
+      <div>
+        <h2 style="font-size:1.6rem;margin-bottom:.8rem">Öne çıkan özellikler</h2>
+        <div class="grid" style="gap:12px">
+          {p.methods.map(m => (
+            <div class="card" style="padding:16px 18px;flex-direction:row;align-items:center;gap:12px">
+              <span style="color:var(--ok)">✔</span>
+              <b style="font-weight:600">{m}</b>
+            </div>
+          ))}
+        </div>
+        
+        <h2 style="font-size:1.6rem;margin:34px 0 .8rem">Genel bakış</h2>
+        <p style="color:var(--ink-2)">
+          {p.desc} {p.name}, Dias Logic veri modeliyle tam entegre çalışır; diğer modüllerle aynı proje dosyasını paylaşır ve sonuçlarını sunulabilir raporlara dönüştürür.
+        </p>
+      </div>
+      
+      <div class="formcard">
+        <div class="ico" style="width:54px;height:54px;border-radius:13px;background:var(--blue-050);display:flex;align-items:center;justify-content:center;border:1px solid #d4ecff;margin-bottom:16px">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[p.ico]}></svg>
+        </div>
+        <h3 style="margin-bottom:.4rem">
+          {p.name} {p.dim !== '—' && <span class="badge">{p.dim}</span>}
+        </h3>
+        <p style="color:var(--ink-2);font-size:.9rem;margin-bottom:18px">{p.tag}</p>
+        <a href="/iletisim" class="btn btn-primary btn-block" style="margin-bottom:10px">Ücretsiz Deneyin</a>
+        <a href="/iletisim" class="btn btn-ghost btn-block">Fiyat Teklifi Al</a>
+      </div>
+    </div>
+
+    {rel.length > 0 && (
+      <>
+        <h2 style="font-size:1.5rem;margin:50px 0 18px">İlgili modüller</h2>
+        <div class="grid cols-3">
+          {rel.map(rp => (
+            <a href={`/yazilim/${rp.id}`} class="card prod">
+              <div class="ico">
+                <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[rp.ico]}></svg>
+              </div>
+              <div class="ptag">{rp.tag}{rp.dim !== '—' && <span class="badge">{rp.dim}</span>}</div>
+              <h3>{rp.name}</h3>
+              <p>{rp.desc}</p>
+              <span class="more">Detaylar</span>
+            </a>
+          ))}
+        </div>
+      </>
+    )}
+  </div></div>
+</Layout>

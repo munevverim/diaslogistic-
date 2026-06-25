@@ -1,0 +1,222 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase.js';
+
+// Fetch categories & topics from Supabase
+let categories = [];
+let topics = [];
+
+try {
+  const { data: catData, error: catErr } = await supabase
+    .from('categories')
+    .select('*')
+    .order('id', { ascending: true });
+  
+  if (!catErr && catData) {
+    categories = catData;
+  }
+  
+  const { data: topicData, error: topicErr } = await supabase
+    .from('topics')
+    .select('*, replies(*)');
+    
+  if (!topicErr && topicData) {
+    topics = topicData;
+  }
+} catch (e) {
+  console.error("Supabase load error:", e);
+}
+
+// Fallback to static seed data if empty
+if (categories.length === 0 || topics.length === 0) {
+  const { SEED_FCATS, SEED_TOPICS } = await import('../../data/geotechnical.js');
+  if (categories.length === 0) categories = SEED_FCATS;
+  if (topics.length === 0) topics = SEED_TOPICS;
+}
+
+// Sort topics by date descending
+topics.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+// Helper for initials
+const initials = (n) => {
+  if (!n) return 'M';
+  return n.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+};
+
+// Function to format date in Turkish
+const fmtDate = (d) => {
+  const x = new Date(d);
+  return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+// Helper for "ago" text
+const ago = (d) => {
+  const s = (Date.now() - new Date(d)) / 1000;
+  if (s < 60) return 'az önce';
+  if (s < 3600) return Math.floor(s / 60) + ' dk önce';
+  if (s < 86400) return Math.floor(s / 3600) + ' saat önce';
+  if (s < 2592000) return Math.floor(s / 86400) + ' gün önce';
+  return fmtDate(d);
+};
+
+// Calculate topic count for each category
+const counts = {};
+categories.forEach(c => {
+  counts[c.id] = topics.filter(t => t.cat === c.id).length;
+});
+---
+
+<Layout title="Forum" activeTab="forum" description="Geoteknik mühendisliği soru-cevap ve tartışma platformu. Dias Logic kullanıcıları yardımlaşma forumu.">
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">Topluluk</div>
+    <h1>Forum</h1>
+    <p>Sorularınızı sorun, deneyimlerinizi paylaşın. Mühendisten mühendise.</p>
+  </div></div>
+
+  <div class="page"><div class="wrap">
+    <div class="forum-cats">
+      {categories.map(c => (
+        <div class="fcat">
+          <div class="fi">{c.emoji || '💬'}</div>
+          <div>
+            <h4>{c.name}</h4>
+            <small>{c.desc} · {counts[c.id] || 0} konu</small>
+          </div>
+        </div>
+      ))}
+    </div>
+    
+    <div class="atop">
+      <h2 style="font-size:1.4rem">Son konular</h2>
+      <button class="btn btn-primary btn-sm" id="btnNewTopic">+ Yeni Konu Aç</button>
+    </div>
+    
+    <div id="newTopicBox"></div>
+    
+    {topics.length > 0 ? (
+      topics.map(t => {
+        const cat = categories.find(c => c.id === t.cat);
+        const replyCount = t.replies ? t.replies.length : 0;
+        return (
+          <a href={`/forum/${t.id}`} class="topic">
+            <div class="av">{initials(t.author)}</div>
+            <div class="tmain">
+              <h4>{t.title}</h4>
+              <div class="tm">
+                <span class="tcat">{cat ? cat.name : 'Genel'}</span>
+                <span>{t.author}</span>
+                <span>{ago(t.date)}</span>
+              </div>
+            </div>
+            <div class="rc">
+              <b>{replyCount}</b>
+              <small>yanıt</small>
+            </div>
+          </a>
+        );
+      })
+    ) : (
+      <div class="empty">
+        <div class="ee">💬</div>
+        Henüz konu yok. İlk konuyu siz açın!
+      </div>
+    )}
+  </div></div>
+</Layout>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  // Retrieve environment variables client side safely since Astro exposes PUBLIC_ variables if configured, 
+  // or we can read them from a window config or process.env during build.
+  // In Astro, to expose environment variables to the browser, we prefix them with PUBLIC_.
+  // But wait, the supabase client URL and anon key are already public (anon key).
+  // We can write them directly or read them.
+  const supabaseUrl = 'https://bcbzolhioialeexuglba.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjYnpvbGhpb2lhbGVleHVnbGJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDAxOTgsImV4cCI6MjA5Nzg3NjE5OH0.fLzYAzz25s5byVMPHWEeqFmPDeUYKf8yD1dY1bQjPMI';
+  
+  const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+  const btnNewTopic = document.getElementById('btnNewTopic');
+  const box = document.getElementById('newTopicBox');
+  
+  // Categories for select option, pass from server via data attribute or JSON
+  const categoriesList = JSON.parse(`[{"id":"c1","name":"Genel"},{"id":"c2","name":"Şev Stabilitesi"},{"id":"c3","name":"Temel & Oturma"},{"id":"c4","name":"Yazılım Kullanımı"},{"id":"c5","name":"Lisans & Destek"}]`);
+
+  if (btnNewTopic && box) {
+    btnNewTopic.addEventListener('click', () => {
+      if (box.innerHTML) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = `
+        <div class="formcard" style="margin-bottom:18px">
+          <div class="field">
+            <label>Kategori</label>
+            <select id="ntCat">
+              ${categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Başlık</label>
+            <input id="ntTitle" placeholder="Konu başlığı">
+          </div>
+          <div class="field">
+            <label>Adınız</label>
+            <input id="ntAuthor" placeholder="Görünecek isim">
+          </div>
+          <div class="field">
+            <label>Mesajınız</label>
+            <textarea id="ntBody" placeholder="Sorunuzu veya paylaşımınızı yazın..."></textarea>
+          </div>
+          <button class="btn btn-primary" id="btnSubmitTopic">Konuyu Yayınla</button>
+        </div>
+      `;
+      
+      const btnSubmitTopic = document.getElementById('btnSubmitTopic');
+      if (btnSubmitTopic) {
+        btnSubmitTopic.addEventListener('click', async () => {
+          const ntTitleEl = document.getElementById('ntTitle');
+          const ntAuthorEl = document.getElementById('ntAuthor');
+          const ntBodyEl = document.getElementById('ntBody');
+          const ntCatEl = document.getElementById('ntCat');
+          
+          if (!ntTitleEl || !ntBodyEl || !ntAuthorEl || !ntCatEl) return;
+          
+          const title = ntTitleEl.value.trim();
+          const author = ntAuthorEl.value.trim() || 'Misafir';
+          const body = ntBodyEl.value.trim();
+          const cat = ntCatEl.value;
+          
+          if (!title || !body) {
+            alert('Lütfen başlık ve mesaj girin');
+            return;
+          }
+          
+          // Generate unique ID
+          const uid = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          
+          const topic = {
+            id: uid,
+            cat,
+            title,
+            author,
+            body,
+            date: new Date().toISOString()
+          };
+          
+          try {
+            const { error } = await supabaseClient.from('topics').insert(topic);
+            if (error) throw error;
+            
+            // Redirect to new topic
+            window.location.href = `/forum/${uid}`;
+          } catch (e) {
+            console.error("Konu yayınlama hatası:", e);
+            alert("Konu yayınlanırken bir hata oluştu: " + e.message);
+          }
+        });
+      }
+    });
+  }
+</script>

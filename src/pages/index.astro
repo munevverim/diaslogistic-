@@ -1,0 +1,334 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { PRODUCTS, SOLUTIONS, COVERS } from '../data/geotechnical.js';
+import { supabase } from '../lib/supabase.js';
+
+// Fetch the 3 most recent blog posts from Supabase
+let blogPosts = [];
+try {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .order('date', { ascending: false })
+    .limit(3);
+  if (!error && data) {
+    blogPosts = data;
+  }
+} catch (e) {
+  console.error("Supabase load error:", e);
+}
+
+// Fallback to static seed data if empty
+if (blogPosts.length === 0) {
+  const { SEED_BLOG } = await import('../data/geotechnical.js');
+  blogPosts = SEED_BLOG.slice(0, 3);
+}
+
+// Function to format date in Turkish
+const fmtDate = (d) => {
+  const x = new Date(d);
+  return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+// SVG icons helper
+const icons = {
+  slope: '<path d="M3 19h18M3 19 14 7l3 3 4-5"/><path d="M14 7l-4 12"/>',
+  mesh: '<path d="M4 20 12 4l8 16zM4 20h16M8 12h8M9.5 8h5"/>',
+  wall: '<path d="M3 21h18M5 21V9h6v12M11 15h8v6M7 12h2M7 18h2M14 18h2"/>',
+  found: '<path d="M3 9h18l-2 4H5zM5 13v6M19 13v6M5 19h14M12 4v5"/>',
+  pile: '<path d="M3 7h18M8 7v13M16 7v13M8 11h8M8 15h8M12 4v3"/>',
+  settle: '<path d="M3 6h18M3 6c0 4 18 4 18 0M3 6v8c0 4 18 4 18 0V6M12 11v6"/>',
+  liq: '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11zM9 14a3 3 0 0 0 3 3"/>',
+  data: '<path d="M4 6c0-1.5 3.6-2.5 8-2.5S20 4.5 20 6s-3.6 2.5-8 2.5S4 7.5 4 6zM4 6v12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5V6M4 12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5"/>',
+};
+---
+
+<Layout title="Ana Sayfa" activeTab="home">
+  <!-- ========== HERO ========== -->
+  <section class="hero"><div class="wrap"><div class="hero-grid">
+    <div>
+      <span class="tag">// GEOTEKNİK ANALİZ YAZILIMLARI</span>
+      <h1>Zeminin altındaki her soruya <em>Türkçe</em> mühendislik yazılımıyla yanıt.</h1>
+      <p class="lead">Dias Logic; şev stabilitesinden temel tasarımına, sıvılaşmadan istinat yapılarına kadar geoteknik mühendislerin günlük iş akışını tek bir entegre yazılım ailesinde toplar.</p>
+      <div class="hero-actions">
+        <a href="/yazilimlar" class="btn btn-primary">Yazılımları İncele</a>
+        <a href="/iletisim" class="btn btn-ghost">Ücretsiz Demo</a>
+      </div>
+      <div class="hero-meta">
+        <div><span class="n mono">8</span><b>Entegre modül</b></div>
+        <div><span class="n mono">%100</span><b>Türkçe arayüz</b></div>
+        <div><span class="n mono">7/24</span><b>Yerel destek</b></div>
+      </div>
+    </div>
+    <div class="section-panel">
+      <div class="cap">
+        <span><span class="dot"></span><span class="dot b"></span><span class="dot"></span></span>
+        <span class="lbl">DiasSlope — sev_kesiti.dsl</span>
+      </div>
+      
+      <svg class="csvg" viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Şev stabilitesi kesiti">
+        <defs>
+          <linearGradient id="gw" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#38B6FF" stop-opacity=".22"/><stop offset="1" stop-color="#38B6FF" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- strata -->
+        <path class="stratum" style="animation-delay:.05s" fill="var(--s1)" d="M40,150 L380,150 L620,350 L760,350 L760,380 L620,380 L380,195 L40,195 Z"/>
+        <path class="stratum" style="animation-delay:.18s" fill="var(--s2)" d="M40,195 L380,195 L620,380 L760,380 L760,420 L620,420 L380,300 L40,300 Z"/>
+        <path class="stratum" style="animation-delay:.31s" fill="var(--s3)" d="M40,300 L380,300 L620,420 L760,420 L760,460 L620,460 L380,400 L40,400 Z"/>
+        <path class="stratum" style="animation-delay:.44s" fill="var(--s4)" d="M40,400 L380,400 L620,460 L760,460 L760,500 L40,500 Z"/>
+        <!-- model frame -->
+        <path d="M40,150 L380,150 L620,350 L760,350" fill="none" stroke="#2E2E30" stroke-width="2.4"/>
+        <rect x="40" y="150" width="720" height="350" fill="none" stroke="#cdd6de" stroke-width="1"/>
+        <!-- groundwater -->
+        <g class="gw">
+          <path d="M40,250 Q400,272 760,332" fill="none" stroke="#1577C2" stroke-width="1.5" stroke-dasharray="6 5"/>
+          <path d="M52,250 l8,0 l-4,7 z" fill="#1577C2"/><path d="M50,243 h12" stroke="#1577C2" stroke-width="1.5"/>
+          <text x="68" y="247" class="mono" font-size="12" fill="#1577C2">YASS</text>
+        </g>
+        <!-- sliding mass -->
+        <path class="mass" fill="url(#gw)" d="M395,150 L620,350 L645,352 C560,430 430,400 360,330 C355,250 360,190 395,150 Z" opacity=".9"/>
+        <!-- slip surface -->
+        <path class="slipline" d="M395,150 C360,210 350,300 360,330 C430,400 560,430 645,352" fill="none" stroke="#1278C2" stroke-width="2.4" stroke-dasharray="8 6"/>
+        <circle cx="395" cy="150" r="4" fill="#1278C2"/><circle cx="645" cy="352" r="4" fill="#1278C2"/>
+        <!-- labels -->
+        <text x="60" y="178" class="mono" font-size="12.5" fill="#7a6a4d">Dolgu</text>
+        <text x="60" y="255" class="mono" font-size="12.5" fill="#7a6a4d">Kil</text>
+        <text x="60" y="355" class="mono" font-size="12.5" fill="#7a6a4d">Kum</text>
+        <text x="60" y="455" class="mono" font-size="12.5" fill="#5f6a74">Kaya</text>
+        <!-- Fs pill -->
+        <g class="fspill" transform="translate(470,238)">
+          <rect x="0" y="0" width="118" height="46" rx="9" fill="#fff" stroke="#bfe3ff" stroke-width="1.5"/>
+          <text x="14" y="20" class="mono" font-size="11" fill="#8A8F96">GÜVENLİK SAYISI</text>
+          <text x="14" y="38" class="mono" font-weight="700" font-size="18" fill="#1278C2"><tspan id="fsVal">1.00</tspan></text>
+          <circle cx="100" cy="29" r="8" fill="#2BB673"/><path d="M96,29 l3,3 l5,-6" stroke="#fff" stroke-width="1.6" fill="none"/>
+        </g>
+      </svg>
+    </div>
+  </div></div></section>
+
+  <!-- ========== TRUST ========== -->
+  <div class="trust"><div class="wrap">
+    <p>Güvenen kurumlar</p>
+    <div class="logos">
+      <span>İTÜ</span><span>ODTÜ</span><span>Boğaziçi</span><span>KGM</span><span>DSİ</span><span>TMMOB</span>
+    </div>
+  </div></div>
+
+  <!-- ========== PRODUCTS ========== -->
+  <section><div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Yazılım Ailesi</div>
+      <h2>Her geoteknik problem için özel araç</h2>
+      <p>Birbiriyle konuşan modüller; tek bir veri modeli, tutarlı arayüz ve sunulabilir raporlar.</p>
+    </div>
+    <div class="grid cols-4">
+      {PRODUCTS.slice(0, 8).map(p => (
+        <a href={`/yazilim/${p.id}`} class="card prod">
+          <div class="ico">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[p.ico]}></svg>
+          </div>
+          <div class="ptag">{p.tag}{p.dim !== '—' && <span class="badge">{p.dim}</span>}</div>
+          <h3>{p.name}</h3>
+          <p>{p.desc}</p>
+          <span class="more">Detaylar</span>
+        </a>
+      ))}
+    </div>
+  </div></section>
+
+  <!-- ========== SOLUTIONS (TABS) ========== -->
+  <section class="dark"><div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Çözümler</div>
+      <h2>İş akışınıza göre düzenlenmiş</h2>
+      <p>Modüllerimizi tekil yazılımlar olarak değil, mühendislik problemlerine yönelik bütünleşik çözümler olarak tasarladık.</p>
+    </div>
+    
+    <div id="solTabs" class="sol">
+      {SOLUTIONS.map((s, idx) => (
+        <button class={`soltab ${idx === 0 ? 'on' : ''}`} data-sol={s.id}>
+          <div class="si">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[s.ico]}></svg>
+          </div>
+          <h4>{s.name}</h4>
+          <small>{s.tools.length} modül</small>
+        </button>
+      ))}
+    </div>
+    
+    <div id="solPanel">
+      {SOLUTIONS.map((s, idx) => (
+        <div class={`solpanel-item ${idx === 0 ? '' : 'hidden'}`} id={`panel-${s.id}`}>
+          <div class="solpanel">
+            <div>
+              <h3>{s.name}</h3>
+              <p style="color:#9aa6b2;margin:.7rem 0 0">{s.desc}</p>
+              <ul>
+                {s.tools.map(t => (
+                  <li>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div class="pic">
+              <div style="width:90px;height:90px;color:var(--blue)">
+                <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[s.ico]}></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div></section>
+
+  <!-- ========== WHY US ========== -->
+  <section><div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Neden Dias Logic</div>
+      <h2>Yerli mühendisliğin gücü</h2>
+    </div>
+    <div class="feat">
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M9 3v2M11 5c0 5-3 9-7 11M7 8c0 3 3 6 7 7M14 20l4-9 4 9M15.5 17h5"/></svg>
+        </div>
+        <h4>Tamamen Türkçe</h4>
+        <p>Arayüz, yardım dökümanları ve mühendislik raporları baştan sona Türkçe. Yabancı yazılımların çeviri yükü olmadan çalışın.</p>
+      </div>
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l1 3h3v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h3zM9 12l2 2 4-4"/></svg>
+        </div>
+        <h4>Yerel yönetmelikler</h4>
+        <p>TBDY 2018, TS ve Eurocode 7 esaslarına uygun hesap ve kontroller modüllere gömülü gelir.</p>
+      </div>
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+        </div>
+        <h4>Hızlı çözücüler</h4>
+        <p>Optimize edilmiş arama algoritmaları ve sonlu eleman çözücüleri ile saniyeler içinde sonuç.</p>
+      </div>
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h7M9 17h5"/></svg>
+        </div>
+        <h4>Sunulabilir raporlar</h4>
+        <p>Müşteriye ve denetime hazır, kurumsal şablonlu PDF/Word raporları tek tıkla.</p>
+      </div>
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13a8 8 0 0 1 16 0M4 13v3a2 2 0 0 0 2 2M20 13v3M12 21a3 3 0 0 0 3-3"/></svg>
+        </div>
+        <h4>Yerel destek</h4>
+        <p>Sorularınıza Türkçe ve aynı saat diliminde, geoteknik bilen bir ekipten yanıt.</p>
+      </div>
+      <div class="f">
+        <div class="fi">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H7"/></svg>
+        </div>
+        <h4>Esnek lisans</h4>
+        <p>Tekil modül, paket ve akademik lisans seçenekleriyle bütçenize uygun kullanım.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ========== STATS ========== -->
+  <section class="stats"><div class="wrap">
+    <div><div class="n mono">8</div><div class="l">Geoteknik modül</div></div>
+    <div><div class="n mono">%100</div><div class="l">Türkçe arayüz</div></div>
+    <div><div class="n mono">4</div><div class="l">Yönetmelik desteği</div></div>
+    <div><div class="n mono">7/24</div><div class="l">Yerel teknik destek</div></div>
+  </div></section>
+
+  <!-- ========== BLOG SECTION ========== -->
+  <section><div class="wrap">
+    <div class="sec-head" style="display:flex;justify-content:space-between;align-items:end;max-width:100%">
+      <div><div class="eyebrow">Blog</div><h2>Geoteknikten notlar</h2></div>
+      <a href="/blog" class="btn btn-ghost btn-sm">Tüm Yazılar →</a>
+    </div>
+    <div class="grid cols-3">
+      {blogPosts.map(p => (
+        <a href={`/blog/${p.id}`} class="post">
+          <div class="cover" style={`background:${COVERS[p.cover || 0]}`}>
+            <span class="ct">{p.category}</span>
+            {p.emoji || '📄'}
+          </div>
+          <div class="pb">
+            <h3>{p.title}</h3>
+            <p>{p.summary}</p>
+            <div class="meta"><span>{p.author}</span>·<span>{fmtDate(p.date)}</span></div>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div></section>
+
+  <!-- ========== CTA BAND ========== -->
+  <section style="padding-top:0"><div class="wrap">
+    <div class="ctaband">
+      <div>
+        <h2>Yazılımı kendi projenizde deneyin</h2>
+        <p>14 günlük ücretsiz deneme ile tüm modüllere tam erişim. Kredi kartı gerekmez.</p>
+      </div>
+      <div class="acts">
+        <a href="/yazilimlar" class="btn btn-blue">Ücretsiz Deneyin</a>
+        <a href="/iletisim" class="btn btn-light">Bizimle İletişime Geçin</a>
+      </div>
+    </div>
+  </div></section>
+</Layout>
+
+<style>
+  .hidden {
+    display: none !important;
+  }
+</style>
+
+<script>
+  // Fs counter animation
+  const el = document.getElementById('fsVal');
+  if (el) {
+    const runAnim = () => {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        el.textContent = '1.42';
+        return;
+      }
+      let v = 1.0;
+      const target = 1.42;
+      const t = setInterval(() => {
+        v += 0.02;
+        if (v >= target) {
+          v = target;
+          clearInterval(t);
+        }
+        el.textContent = v.toFixed(2);
+      }, 28);
+    };
+    
+    // run after page loads
+    setTimeout(runAnim, 300);
+  }
+
+  // Solution tabs interaction
+  const tabs = document.querySelectorAll('#solTabs .soltab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Remove 'on' class from all tabs
+      tabs.forEach(t => t.classList.remove('on'));
+      // Add 'on' class to clicked tab
+      tab.classList.add('on');
+      
+      // Hide all panels
+      const solId = tab.getAttribute('data-sol');
+      document.querySelectorAll('[id^="panel-"]').forEach(panel => {
+        panel.classList.add('hidden');
+      });
+      // Show selected panel
+      const targetPanel = document.getElementById(`panel-${solId}`);
+      if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+      }
+    });
+  });
+</script>

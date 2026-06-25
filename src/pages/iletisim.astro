@@ -1,0 +1,80 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="İletişim" activeTab="iletisim" description="Demo talebi, fiyat teklifi veya teknik sorularınız için bizimle iletişime geçin. İletişim formu ve adres bilgileri.">
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">Bize Ulaşın</div>
+    <h1>İletişim</h1>
+    <p>Demo talebi, fiyat teklifi veya teknik sorularınız için formu doldurun; en kısa sürede dönüş yapalım.</p>
+  </div></div>
+
+  <div class="page"><div class="wrap" style="display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:start">
+    <div class="formcard">
+      <div id="contactMsg"></div>
+      <div class="frow">
+        <div class="field"><label>Ad Soyad</label><input id="cName" placeholder="Adınız"></div>
+        <div class="field"><label>Kurum</label><input id="cOrg" placeholder="Şirket / üniversite"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>E-posta</label><input id="cMail" type="email" placeholder="ornek@firma.com"></div>
+        <div class="field"><label>Konu</label>
+          <select id="cTopic">
+            <option>Demo talebi</option>
+            <option>Fiyat teklifi</option>
+            <option>Teknik soru</option>
+            <option>Akademik lisans</option>
+            <option>Diğer</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Mesajınız</label><textarea id="cBody" placeholder="Size nasıl yardımcı olabiliriz?"></textarea></div>
+      <button class="btn btn-primary" id="btnSubmitContact">Mesajı Gönder</button>
+    </div>
+    
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h4 style="margin-bottom:.5rem">📧 E-posta</h4>
+        <p style="color:var(--ink-2);margin:0">info@diaslogic.com</p>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h4 style="margin-bottom:.5rem">💬 Forum</h4>
+        <p style="color:var(--ink-2);margin:0 0 .6rem">Teknik sorularınız için topluluğumuza katılın.</p>
+        <a href="/forum" class="btn btn-ghost btn-sm">Foruma Git</a>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:.5rem">🎓 Akademik</h4>
+        <p style="color:var(--ink-2);margin:0">Üniversiteler için özel lisans paketleri mevcuttur.</p>
+      </div>
+    </div>
+  </div></div>
+</Layout>
+
+<script>
+  const btnSubmit = document.getElementById('btnSubmitContact');
+  const msgBox = document.getElementById('contactMsg');
+  
+  if (btnSubmit && msgBox) {
+    btnSubmit.addEventListener('click', () => {
+      const cNameEl = document.getElementById('cName') as HTMLInputElement | null;
+      const cOrgEl = document.getElementById('cOrg') as HTMLInputElement | null;
+      const cMailEl = document.getElementById('cMail') as HTMLInputElement | null;
+      const cBodyEl = document.getElementById('cBody') as HTMLTextAreaElement | null;
+      
+      const n = cNameEl ? cNameEl.value.trim() : '';
+      const m = cMailEl ? cMailEl.value.trim() : '';
+      
+      if (!n || !m) {
+        msgBox.innerHTML = '<div class="notice warn">Lütfen ad ve e-posta alanlarını doldurun.</div>';
+        return;
+      }
+      
+      msgBox.innerHTML = '<div class="notice">Teşekkürler! Mesajınız alındı, en kısa sürede dönüş yapacağız. <small>(Demo site — gerçek gönderim için sunucu bağlantısı gerekir.)</small></div>';
+      
+      if (cNameEl) cNameEl.value = '';
+      if (cOrgEl) cOrgEl.value = '';
+      if (cMailEl) cMailEl.value = '';
+      if (cBodyEl) cBodyEl.value = '';
+    });
+  }
+</script>

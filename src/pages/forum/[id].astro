@@ -1,0 +1,176 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase.js';
+
+const { id } = Astro.params;
+
+// Fetch topic and replies from Supabase
+let topic = null;
+let category = null;
+
+try {
+  const { data: topicData, error: topicErr } = await supabase
+    .from('topics')
+    .select('*, replies(*)')
+    .eq('id', id)
+    .single();
+    
+  if (!topicErr && topicData) {
+    topic = topicData;
+    
+    // Sort replies chronologically
+    if (topic.replies) {
+      topic.replies.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else {
+      topic.replies = [];
+    }
+    
+    // Fetch category
+    const { data: catData } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', topic.cat)
+      .single();
+    
+    if (catData) {
+      category = catData;
+    }
+  }
+} catch (e) {
+  console.error("Supabase load error:", e);
+}
+
+// Fallback to static seed data if not found or empty
+if (!topic) {
+  const { SEED_TOPICS, SEED_FCATS } = await import('../../data/geotechnical.js');
+  const fallbackTopic = SEED_TOPICS.find(x => x.id === id);
+  if (fallbackTopic) {
+    topic = JSON.parse(JSON.stringify(fallbackTopic));
+    category = SEED_FCATS.find(c => c.id === topic.cat);
+  }
+}
+
+if (!topic) {
+  return Astro.redirect('/404');
+}
+
+// Helper for initials
+const initials = (n) => {
+  if (!n) return 'M';
+  return n.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+};
+
+// Function to format date in Turkish
+const fmtDate = (d) => {
+  const x = new Date(d);
+  return x.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+// Helper for "ago" text
+const ago = (d) => {
+  const s = (Date.now() - new Date(d)) / 1000;
+  if (s < 60) return 'az önce';
+  if (s < 3600) return Math.floor(s / 60) + ' dk önce';
+  if (s < 86400) return Math.floor(s / 3600) + ' saat önce';
+  if (s < 2592000) return Math.floor(s / 86400) + ' gün önce';
+  return fmtDate(d);
+};
+---
+
+<Layout title={topic.title} activeTab="forum" description={topic.body.slice(0, 150)}>
+  <div class="page" style="padding-top:36px"><div class="wrap" style="max-width:840px">
+    <p class="crumb"><a href="/forum">Forum</a> / {category ? category.name : 'Genel'}</p>
+    <h1 style="font-size:1.8rem;letter-spacing:-.02em;margin-bottom:.6rem">{topic.title}</h1>
+    <div class="ameta" style="margin-bottom:24px">
+      <span class="tcat">{category ? category.name : 'Genel'}</span>
+      <span style="color:var(--ink-3);font-size:.85rem">{(topic.replies || []).length} yanıt</span>
+    </div>
+    
+    <!-- OP (Original Poster) Topic Body -->
+    <div class="reply op">
+      <div class="av" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--blue-700));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'Space Grotesk'">
+        {initials(topic.author)}
+      </div>
+      <div class="rbody">
+        <h5>{topic.author} <span class="op-b">KONUYU AÇAN</span></h5>
+        <div class="rt">{ago(topic.date)}</div>
+        <div class="rc">{topic.body}</div>
+      </div>
+    </div>
+    
+    <!-- Replies List -->
+    {topic.replies && topic.replies.map(r => (
+      <div class="reply">
+        <div class="av" style={`width:42px;height:42px;border-radius:50%;background:${r.op ? 'linear-gradient(135deg,var(--blue),var(--blue-700))' : '#cfd6dd'};color:${r.op ? '#fff' : '#5a6068'};display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'Space Grotesk'`}>
+          {initials(r.author)}
+        </div>
+        <div class="rbody">
+          <h5>{r.author} {r.op && <span class="op-b">KONUYU AÇAN</span>}</h5>
+          <div class="rt">{ago(r.date)}</div>
+          <div class="rc">{r.body}</div>
+        </div>
+      </div>
+    ))}
+    
+    <!-- Write Reply Form -->
+    <div class="formcard" style="margin-top:24px">
+      <h3 style="font-size:1.1rem;margin-bottom:14px">Yanıt yaz</h3>
+      <div class="field"><label>Adınız</label><input id="rpAuthor" placeholder="Görünecek isim"></div>
+      <div class="field"><label>Yanıtınız</label><textarea id="rpBody" placeholder="Düşüncelerinizi paylaşın..."></textarea></div>
+      <button class="btn btn-primary" id="btnSubmitReply">Yanıtı Gönder</button>
+    </div>
+  </div></div>
+</Layout>
+
+<script define:vars={{ topicId: topic.id, topicAuthor: topic.author }}>
+  import { createClient } from '@supabase/supabase-js';
+
+  const supabaseUrl = 'https://bcbzolhioialeexuglba.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjYnpvbGhpb2lhbGVleHVnbGJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDAxOTgsImV4cCI6MjA5Nzg3NjE5OH0.fLzYAzz25s5byVMPHWEeqFmPDeUYKf8yD1dY1bQjPMI';
+  
+  const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+  const btnSubmitReply = document.getElementById('btnSubmitReply');
+  if (btnSubmitReply) {
+    btnSubmitReply.addEventListener('click', async () => {
+      const rpAuthorEl = document.getElementById('rpAuthor');
+      const rpBodyEl = document.getElementById('rpBody');
+      
+      if (!rpAuthorEl || !rpBodyEl) return;
+      
+      const author = rpAuthorEl.value.trim() || 'Misafir';
+      const body = rpBodyEl.value.trim();
+      
+      if (!body) {
+        alert('Lütfen yanıtınızı yazın');
+        return;
+      }
+      
+      // Generate reply ID
+      const uid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      
+      // Check if original author
+      const op = author.toLowerCase() === topicAuthor.toLowerCase();
+      
+      const reply = {
+        id: uid,
+        topic_id: topicId,
+        author,
+        body,
+        date: new Date().toISOString(),
+        op
+      };
+      
+      try {
+        const { error } = await supabaseClient.from('replies').insert(reply);
+        if (error) throw error;
+        
+        // Reload page to reflect changes
+        window.location.reload();
+      } catch (e) {
+        console.error("Yanıt gönderim hatası:", e);
+        alert("Yanıt gönderilirken bir hata oluştu: " + e.message);
+      }
+    });
+  }
+</script>

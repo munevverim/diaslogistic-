@@ -1,0 +1,50 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { PRODUCTS } from '../data/geotechnical.js';
+
+// SVG icons helper
+const icons = {
+  slope: '<path d="M3 19h18M3 19 14 7l3 3 4-5"/><path d="M14 7l-4 12"/>',
+  mesh: '<path d="M4 20 12 4l8 16zM4 20h16M8 12h8M9.5 8h5"/>',
+  wall: '<path d="M3 21h18M5 21V9h6v12M11 15h8v6M7 12h2M7 18h2M14 18h2"/>',
+  found: '<path d="M3 9h18l-2 4H5zM5 13v6M19 13v6M5 19h14M12 4v5"/>',
+  pile: '<path d="M3 7h18M8 7v13M16 7v13M8 11h8M8 15h8M12 4v3"/>',
+  settle: '<path d="M3 6h18M3 6c0 4 18 4 18 0M3 6v8c0 4 18 4 18 0V6M12 11v6"/>',
+  liq: '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11zM9 14a3 3 0 0 0 3 3"/>',
+  data: '<path d="M4 6c0-1.5 3.6-2.5 8-2.5S20 4.5 20 6s-3.6 2.5-8 2.5S4 7.5 4 6zM4 6v12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5V6M4 12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5"/>',
+};
+---
+
+<Layout title="Yazılımlar" activeTab="yazilimlar" description="Geoteknik mühendisliğin her alanı için tasarlanmış, birbiriyle entegre çalışan modüller.">
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">Yazılım Ailesi</div>
+    <h1>Yazılımlar</h1>
+    <p>Geoteknik mühendisliğin her alanı için tasarlanmış, birbiriyle entegre çalışan modüller.</p>
+  </div></div>
+
+  <div class="page"><div class="wrap">
+    <div class="grid cols-3">
+      {PRODUCTS.map(p => (
+        <a href={`/yazilim/${p.id}`} class="card prod">
+          <div class="ico">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[p.ico]}></svg>
+          </div>
+          <div class="ptag">{p.tag}{p.dim !== '—' && <span class="badge">{p.dim}</span>}</div>
+          <h3>{p.name}</h3>
+          <p>{p.desc}</p>
+          <span class="more">Detaylar</span>
+        </a>
+      ))}
+    </div>
+    
+    <div style="margin-top:46px" class="ctaband">
+      <div>
+        <h2>Hangi modül size uygun?</h2>
+        <p>İhtiyacınızı anlatın, doğru paketi birlikte belirleyelim.</p>
+      </div>
+      <div class="acts">
+        <a href="/iletisim" class="btn btn-blue">Danışmanlık Talep Et</a>
+      </div>
+    </div>
+  </div></div>
+</Layout>

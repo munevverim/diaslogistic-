@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { SOLUTIONS, PRODUCTS } from '../data/geotechnical.js';
+
+// SVG icons helper
+const icons = {
+  slope: '<path d="M3 19h18M3 19 14 7l3 3 4-5"/><path d="M14 7l-4 12"/>',
+  mesh: '<path d="M4 20 12 4l8 16zM4 20h16M8 12h8M9.5 8h5"/>',
+  wall: '<path d="M3 21h18M5 21V9h6v12M11 15h8v6M7 12h2M7 18h2M14 18h2"/>',
+  found: '<path d="M3 9h18l-2 4H5zM5 13v6M19 13v6M5 19h14M12 4v5"/>',
+  pile: '<path d="M3 7h18M8 7v13M16 7v13M8 11h8M8 15h8M12 4v3"/>',
+  settle: '<path d="M3 6h18M3 6c0 4 18 4 18 0M3 6v8c0 4 18 4 18 0V6M12 11v6"/>',
+  liq: '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11zM9 14a3 3 0 0 0 3 3"/>',
+  data: '<path d="M4 6c0-1.5 3.6-2.5 8-2.5S20 4.5 20 6s-3.6 2.5-8 2.5S4 7.5 4 6zM4 6v12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5V6M4 12c0 1.5 3.6 2.5 8 2.5s8-1 8-2.5"/>',
+};
+
+// Helper function to find product id from name
+const getProductId = (name) => {
+  const pr = PRODUCTS.find(x => x.name === name);
+  return pr ? pr.id : '';
+};
+---
+
+<Layout title="Çözümler" activeTab="cozumler" description="Geoteknik mühendislik problemlerine yönelik bütünleşik çözümler ve iş akışı optimizasyonu.">
+  <div class="page-hd"><div class="wrap">
+    <div class="eyebrow">Mühendislik Çözümleri</div>
+    <h1>Çözümler</h1>
+    <p>Modüllerimizi, karşılaştığınız geoteknik problemlere göre gruplandırdık.</p>
+  </div></div>
+
+  <div class="page"><div class="wrap">
+    <div class="grid" style="gap: 20px">
+      {SOLUTIONS.map(s => (
+        <div class="card" style="display:grid;grid-template-columns:60px 1fr auto;gap:20px;align-items:center;padding:24px">
+          <div class="ico" style="width:54px;height:54px;border-radius:13px;background:var(--blue-050);display:flex;align-items:center;justify-content:center;border:1px solid #d4ecff">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" set:html={icons[s.ico]}></svg>
+          </div>
+          <div>
+            <h3 style="margin-bottom:.3rem">{s.name}</h3>
+            <p style="color:var(--ink-2);font-size:.92rem;margin:0">{s.desc}</p>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem">
+              {s.tools.map(t => (
+                <a href={`/yazilim/${getProductId(t)}`} class="chip on" style="font-size:.78rem">
+                  {t}
+                </a>
+              ))}
+            </div>
+          </div>
+          <a href="/yazilimlar" class="btn btn-ghost btn-sm">İncele →</a>
+        </div>
+      ))}
+    </div>
+  </div></div>
+</Layout>
